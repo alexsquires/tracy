@@ -56,3 +56,17 @@ def filter_for_unique_structures(structures, cluster_space):
             filtered_structures.append(structure)
             cluster_vectors.append(list(cluster_vector))
     return filtered_structures
+
+
+def filter_entries_for_unique_structures(entries, cluster_space):
+    filtered_structures = []
+    cluster_vectors = []
+    for entry in entries:
+        structure = AseAtomsAdaptor.get_atoms(entry.structure)
+        structure = map_structure_to_reference(structure, cluster_space.primitive_structure)[0]
+        cluster_vector = cluster_space.get_cluster_vector(structure)
+        if list(cluster_vector) not in cluster_vectors:
+        #if np.any(np.all(cluster_vector == cluster_vectors)) == False:
+            filtered_structures.append(entry)
+            cluster_vectors.append(list(cluster_vector))
+    return filtered_structures
