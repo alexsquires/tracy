@@ -1,5 +1,6 @@
 from icet.tools.structure_mapping import map_structure_to_reference
-from icet import StructureContainer, CrossValidationEstimator, ClusterSpace
+from icet import StructureContainer, ClusterSpace
+from trainstation import CrossValidationEstimator
 import numpy as np
 import pandas as pd
 
