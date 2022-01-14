@@ -4,49 +4,104 @@ from trainstation import CrossValidationEstimator
 import numpy as np
 import pandas as pd
 
-def get_structure_container(cluster_space, structures, energies, verbose = True):
+from mchammer.calculators import ClusterExpansionCalculator
+from mchammer.ensembles import CanonicalEnsemble as CEnsemble
+from icet import ClusterExpansion
+import time
+
+
+def get_structure_container(
+    cluster_space: ClusterSpace, structures: list, energies: list
+) -> StructureContainer:
+    """
+    Create a StructureContainer object given ClusterSpace,
+    structures and energies, filtering out structures that
+    don't map on to the primitive cell defined by the ClusterSpace
+
+    args:
+        cluster_space: icet.ClusterSpace
+        structures: list of ase.atoms object which matches the order of the list of energies
+        energies: list of floats of target properties (assumed to be energies) to be fit
+    returns:
+        structure_container: icet.ClusterSpace
+
+    """
     structure_container = StructureContainer(cluster_space)
     could_not_be_mapped = 0
     warning_raised = 0
     for structure, energy in zip(structures, energies):
         try:
-            mapped_structure, info = map_structure_to_reference(structure, cluster_space.primitive_structure)
-            if info['warnings'] == []:
-                structure_container.add_structure(mapped_structure, properties = {'energy': energy})
-            else:
-                warning_raised += 1
+            mapped_structure, info = map_structure_to_reference(
+                structure, cluster_space.primitive_structure
+            )
+            if info["warnings"] == []:
+                structure_container.add_structure(
+                    mapped_structure, properties={"energy": energy}
+                )
         except:
-            could_not_be_mapped += 1
-    if verbose == True:
-        print(f'{len(structure_container)} structures succesfully mapped on to primitive cell')
-        if warning_raised > 0:
-            print(f'{warning_raised} structures raised a warning while mapping, these structures have not been added to the structure container.')
-            print('to override this behaviour, perform mapping manually')
-        if could_not_be_mapped > 0:
-            print(f'{could_not_be_mapped} structures failed to map on to the primitive cell, these structures cannot be added to the structure container')
+            None
     return structure_container
 
-def get_fitting_summary(structure_container, fit_method):
-    cross_validation_estimator = CrossValidationEstimator(structure_container.get_fit_data(), fit_method = fit_method)
+
+def get_fitting_summary(structure_container: StructureContainer, fit_method: str):
+    """
+    get the stats from a trainstation given an icet
+    structure container object
+
+    args:
+        structure_container: icet.StructureContainer
+        fit_method: fit method for the CrossValidationEstimator
+    returns:
+        cve_summary: (dict) CrossValidationEstimator stats
+    """
+    cross_validation_estimator = CrossValidationEstimator(
+        structure_container.get_fit_data(), fit_method=fit_method
+    )
     cross_validation_estimator.train()
     cross_validation_estimator.validate()
-    return cross_validation_estimator.summary
+    cve_summary = cross_validation_estimator.summary
+    return cve_summary
 
 
-def cutoff_convergence(primitive_cell, chemical_symbols, structures, energies, cutoff_template = [], order=2, range=np.arange(0,7), fit_methods = ['rfe']):
+def cutoff_convergence(
+    cluster_space: ClusterSpace,
+    structures: list,
+    energies: list,
+    cutoff_template: list = [],
+    order: float = 2,
+    cutoff_range: list = np.arange(0, 7),
+    fit_methods: list = ["rfe"],
+):
+    """
+    get convergence with respect to cutoff distance
+
+    args:
+        cluster_space: (icet.ClusterSpace)
+        structures: list of atoms objects that match the order of the list of energies
+        energies: list of target properties as floats (assumed to be energies)
+        cutoff_template: template for cutoffs, list of length of that you want to consider orders up to
+        order: order for cutoff convergence
+        cutoff_range: list of cluster cutoffs to try for the selected order
+        fit_methods: list of fit methods to try
+
+    returns:
+        cutoff_df: dataframe of fitting information
+    """
     fitting_data = []
     for cutoff in range:
         cutoffs = cutoff_template
-        cutoffs[order-2] = cutoff
-        cluster_space = ClusterSpace(primitive_cell, cutoffs, chemical_symbols)
-        structure_container = get_structure_container(cluster_space, structures, energies)
+        cutoffs[order - 2] = cutoff
+        cluster_space.cutoffs = cutoffs
+        structure_container = get_structure_container(
+            cluster_space, structures, energies
+        )
         for fit_method in fit_methods:
             summary = get_fitting_summary(structure_container, fit_method)
-            summary[f'cutoff_{order}'] = cutoff
+            summary[f"cutoff_{order}"] = cutoff
             fitting_data.append(summary)
     cutoff_df = pd.DataFrame(fitting_data)
-    return cutoff_df 
-    
+    return cutoff_df
+
 
 def filter_for_unique_structures(structures, cluster_space):
     filtered_structures = []
@@ -64,10 +119,28 @@ def filter_entries_for_unique_structures(entries, cluster_space):
     cluster_vectors = []
     for entry in entries:
         structure = AseAtomsAdaptor.get_atoms(entry.structure)
-        structure = map_structure_to_reference(structure, cluster_space.primitive_structure)[0]
+        structure = map_structure_to_reference(
+            structure, cluster_space.primitive_structure
+        )[0]
         cluster_vector = cluster_space.get_cluster_vector(structure)
         if list(cluster_vector) not in cluster_vectors:
-        #if np.any(np.all(cluster_vector == cluster_vectors)) == False:
+            # if np.any(np.all(cluster_vector == cluster_vectors)) == False:
             filtered_structures.append(entry)
             cluster_vectors.append(list(cluster_vector))
     return filtered_structures
+
+
+def run_canonical_simulation(args):
+    cluster_expansion = ClusterExpansion.read(args["path_to_ce"])
+    start = time.time()
+    temperature = args["temperature"]
+    calculator = ClusterExpansionCalculator(args["supercell"], cluster_expansion)
+    mc = CEnsemble(
+        calculator=calculator,
+        structure=args["supercell"],
+        ensemble_data_write_interval=200,
+        trajectory_write_interval=200,
+        temperature=temperature,
+        data_container=f"mc_data/{args['temperature']}_{args['n_supercell']}_{args['label']}.dc",
+    )
+    mc.run(number_of_trial_steps=args["n_steps"])
