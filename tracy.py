@@ -4,6 +4,7 @@ from trainstation import CrossValidationEstimator
 import numpy as np
 import pandas as pd
 
+from pymatgen.io.ase import AseAtomsAdaptor
 from mchammer.calculators import ClusterExpansionCalculator
 from mchammer.ensembles import CanonicalEnsemble as CEnsemble
 from icet import ClusterExpansion
