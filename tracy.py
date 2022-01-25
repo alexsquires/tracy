@@ -145,3 +145,20 @@ def run_canonical_simulation(args):
         data_container=f"mc_data/{args['temperature']}_{args['n_supercell']}_{args['label']}.dc",
     )
     mc.run(number_of_trial_steps=args["n_steps"])
+    
+    
+    def run_canonical_annealing_simulation(args):
+    cluster_expansion = ClusterExpansion.read(args["path_to_ce"])
+    structure = args["supercell"]
+    calculator = ClusterExpansionCalculator(structure, cluster_expansion)
+    mc = CAnneal(
+        calculator=calculator,
+        structure=structure,
+        T_start = args["starting_temperature"],
+        T_stop = args["finish_temperature"],
+        n_steps = args["n_steps"],
+        ensemble_data_write_interval=200,
+        trajectory_write_interval=200,
+        dc_filename=f"mc_data/anneal_{args['label']}.dc",
+    )
+    mc.run()
