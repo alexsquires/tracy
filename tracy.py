@@ -7,6 +7,7 @@ import pandas as pd
 from pymatgen.io.ase import AseAtomsAdaptor
 from mchammer.calculators import ClusterExpansionCalculator
 from mchammer.ensembles import CanonicalEnsemble as CEnsemble
+from mchammer.ensembles import CanonicalAnnealing as CAnneal
 from icet import ClusterExpansion
 import time
 
