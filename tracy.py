@@ -89,7 +89,7 @@ def cutoff_convergence(
         cutoff_df: dataframe of fitting information
     """
     fitting_data = []
-    for cutoff in range:
+    for cutoff in cutoff_range:
         cutoffs = cutoff_template
         cutoffs[order - 2] = cutoff
         cluster_space.cutoffs = cutoffs
