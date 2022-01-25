@@ -75,7 +75,6 @@ def cutoff_convergence(
 ):
     """
     get convergence with respect to cutoff distance
-
     args:
         cluster_space: (icet.ClusterSpace)
         structures: list of atoms objects that match the order of the list of energies
@@ -84,7 +83,6 @@ def cutoff_convergence(
         order: order for cutoff convergence
         cutoff_range: list of cluster cutoffs to try for the selected order
         fit_methods: list of fit methods to try
-
     returns:
         cutoff_df: dataframe of fitting information
     """
@@ -92,7 +90,9 @@ def cutoff_convergence(
     for cutoff in cutoff_range:
         cutoffs = cutoff_template
         cutoffs[order - 2] = cutoff
-        cluster_space.cutoffs = cutoffs
+        cluster_space = ClusterSpace(
+            cluster_space.primitive_structure, cutoffs, cluster_space.chemical_symbols
+        )
         structure_container = get_structure_container(
             cluster_space, structures, energies
         )
